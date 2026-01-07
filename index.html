@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1bot Manager</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+
+    <section id="login-screen">
+        <div class="logo-area">
+            <span class="material-icons" style="font-size: 60px;">smart_toy</span>
+            <h1>1bot Manager</h1>
+            <p>Gestión de Tutores STEEAM</p>
+        </div>
+        <div class="login-box">
+            <input type="email" id="email" placeholder="correo@1bot.com">
+            <input type="password" id="password" placeholder="Contraseña">
+            <button onclick="loginSupabase()">Iniciar Sesión</button>
+            <p id="login-error" style="color: #ff6b6b; display:none; margin-top:10px;">Error de credenciales</p>
+        </div>
+    </section>
+
+    <section id="tutor-dashboard" class="hidden">
+        <div class="header">
+            <h2 id="tutor-welcome">Hola, Tutor</h2>
+            <div id="connection-status" class="status-online">Online</div>
+            <button class="btn-logout" onclick="logout()">Salir</button>
+        </div>
+
+        <div class="scorecard">
+            <div class="score-item">
+                <span class="score-label">Bono Administrativo (Q850)</span>
+                <div class="progress-bar"><div class="fill green" style="width: 100%"></div></div>
+            </div>
+            <div class="score-item">
+                <span class="score-label">Bono Productividad (Q850)</span>
+                <div class="progress-bar"><div class="fill yellow" style="width: 85%"></div></div>
+            </div>
+        </div>
+
+        <div class="action-grid">
+            <div class="card" onclick="openModal('clase')">
+                <span class="material-icons">school</span>
+                <h3>Mi Clase Hoy</h3>
+                <p>Check-in GPS & Asistencia</p>
+            </div>
+            
+            <div class="card" onclick="alert('Módulo en construcción')">
+                <span class="material-icons">assignment_turned_in</span>
+                <h3>Mis Trámites</h3>
+                <p>Informes & SIREEX</p>
+            </div>
+
+            <div class="card" onclick="alert('Módulo en construcción')">
+                <span class="material-icons">build</span>
+                <h3>Mis Herramientas</h3>
+                <p>Reportar Averías</p>
+            </div>
+        </div>
+
+        <div id="sync-area" class="hidden">
+            <p>⚠️ Tienes <span id="pending-count">0</span> reportes sin subir.</p>
+            <button onclick="syncData()" class="btn-sync">Sincronizar Ahora</button>
+        </div>
+    </section>
+
+    <section id="admin-dashboard" class="hidden">
+        <div class="header admin-header">
+            <h2>Torre de Control</h2>
+            <button class="btn-logout" onclick="logout()">Salir</button>
+        </div>
+
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <h3>11</h3>
+                <p>Tutores</p>
+            </div>
+            <div class="kpi-card alert">
+                <h3 id="alert-count">0</h3>
+                <p>Alertas GPS</p>
+            </div>
+            <div class="kpi-card success">
+                <h3 id="okr-progress">Hoy</h3>
+                <p>Reportes</p>
+            </div>
+        </div>
+
+        <div class="tutor-list">
+            <h3>Actividad del Día</h3>
+            <ul id="lista-tutores">
+                </ul>
+        </div>
+    </section>
+
+    <div id="modal-clase" class="modal hidden">
+        <div class="modal-content">
+            <h3>Reporte de Sesión</h3>
+            <select id="sede-select">
+                <option value="Sede Central">Sede Central</option>
+                <option value="Escuela Rural 1">Escuela Rural 1</option>
+                <option value="Guastatoya Oficial">Guastatoya Oficial</option>
+            </select>
+            
+            <label>Asistencia (%):</label>
+            <input type="number" id="asistencia" placeholder="Ej. 90">
+            
+            <label>Evidencia (Foto):</label>
+            <input type="file" id="foto-evidencia" accept="image/*">
+            
+            <textarea id="notas-clase" placeholder="¿Hubo incidencias? ¿Qué tema diste?"></textarea>
+            
+            <div class="btn-group">
+                <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+                <button class="btn-save" onclick="intentarGuardarConGPS()">📸 Check-in y Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
