@@ -21,10 +21,10 @@
             </div>
             <div class="login-box">
                 <h2>Bienvenido</h2>
-                <input type="email" id="email" placeholder="correo@1bot.com">
+                <input type="email" id="email" placeholder="Correo">
                 <input type="password" id="password" placeholder="Contraseña">
                 <button id="btn-login" class="btn-primary">INICIAR SESIÓN</button>
-                <p id="login-error" class="hidden" style="color:#e74c3c; margin-top:10px;">Error de credenciales</p>
+                <p id="login-error" class="hidden" style="color:#E74C3C;margin-top:10px;">Error de credenciales</p>
             </div>
         </div>
     </section>
@@ -33,7 +33,7 @@
         
         <header class="mobile-header">
             <div class="user-badge">
-                <div class="avatar-circle" id="user-initial">T</div>
+                <div class="avatar-circle" id="user-initial">U</div>
                 <div>
                     <h4 id="header-username">Usuario</h4>
                     <span id="connection-status" class="status-badge">Online</span>
@@ -45,172 +45,102 @@
         </header>
 
         <main class="content-area">
-
+            
             <div id="tutor-view" class="hidden">
                 <div class="welcome-banner">
                     <h1 id="tutor-welcome">Hola!</h1>
-                    <p>Meta mensual: Q3,900.00</p>
+                    <p>Meta: Q3,900.00</p>
                 </div>
                 
                 <div class="dashboard-grid">
                     <div class="card stat-card">
-                        <div class="stat-header">
-                            <h3>Bono Admin</h3>
-                            <span class="money-tag">Q850</span>
-                        </div>
+                        <div class="stat-header"><h3>Bono Admin</h3><span class="money-tag">Q850</span></div>
                         <div class="big-number" id="perc-admin">0%</div>
                         <div class="mini-progress"><div id="bar-admin" class="fill cyan"></div></div>
                     </div>
-
                     <div class="card stat-card">
-                        <div class="stat-header">
-                            <h3>Bono Prod.</h3>
-                            <span class="money-tag">Q850</span>
-                        </div>
+                        <div class="stat-header"><h3>Bono Prod.</h3><span class="money-tag">Q850</span></div>
                         <div class="big-number" id="perc-prod">0%</div>
                         <div class="mini-progress"><div id="bar-prod" class="fill magenta"></div></div>
                     </div>
                 </div>
 
-                <h3 class="section-label">Acciones Diarias</h3>
+                <h3 class="section-label">Acciones</h3>
                 <div class="action-row">
                     <button class="action-card" onclick="openModal('clase')">
-                        <span class="material-icons-round">location_on</span>
-                        <span>Check-in Clase</span>
+                        <span class="material-icons-round">location_on</span><span>Check-in</span>
                     </button>
-                    <button class="action-card" onclick="alert('Módulo pendiente')">
-                        <span class="material-icons-round">upload_file</span>
-                        <span>Informe 25</span>
+                    <button class="action-card" onclick="alert('Pendiente')">
+                        <span class="material-icons-round">upload_file</span><span>Informe</span>
                     </button>
-                    <button class="action-card" onclick="alert('Módulo pendiente')">
-                        <span class="material-icons-round">build</span>
-                        <span>Mis Kits</span>
+                    <button class="action-card" onclick="alert('Pendiente')">
+                        <span class="material-icons-round">build</span><span>Kits</span>
                     </button>
                 </div>
 
-                <h3 class="section-label">Mis Objetivos</h3>
-                <div id="okr-container">
-                    <div class="loader">Cargando objetivos...</div>
-                </div>
-
+                <h3 class="section-label">Objetivos</h3>
+                <div id="okr-container"><div class="loader">Cargando...</div></div>
+                
                 <div id="sync-area" class="hidden">
-                    <button onclick="syncData()" class="btn-sync">
-                        <span class="material-icons-round">sync</span> Sincronizar (<span id="pending-count">0</span>)
-                    </button>
+                    <button onclick="syncData()" class="btn-sync"><span class="material-icons-round">sync</span> Sync (<span id="pending-count">0</span>)</button>
                 </div>
             </div>
 
             <div id="admin-view" class="hidden">
                 <div class="kpi-summary">
-                    <div class="kpi-box">
-                        <span class="kpi-val" id="total-tutors">0</span>
-                        <span class="kpi-lbl">Equipo</span>
-                    </div>
-                    <div class="kpi-box alert">
-                        <span class="kpi-val" id="alert-count">0</span>
-                        <span class="kpi-lbl">Alertas GPS</span>
-                    </div>
-                    <div class="kpi-box success">
-                        <span class="kpi-val" id="global-okr">0%</span>
-                        <span class="kpi-lbl">Ejecución</span>
-                    </div>
+                    <div class="kpi-box"><span class="kpi-val" id="total-tutors">0</span><span class="kpi-lbl">Equipo</span></div>
+                    <div class="kpi-box alert"><span class="kpi-val" id="alert-count">0</span><span class="kpi-lbl">Alertas</span></div>
+                    <div class="kpi-box success"><span class="kpi-val" id="global-okr">0%</span><span class="kpi-lbl">Ejecución</span></div>
                 </div>
-
                 <div class="card full-width">
                     <div class="card-header">
-                        <h3>Estado del Escuadrón</h3>
+                        <h3>Equipo</h3>
                         <button class="btn-small" onclick="openAdminModal()">+ Gestión</button>
                     </div>
                     <ul id="lista-tutores" class="modern-list"></ul>
                 </div>
             </div>
-
         </main>
     </div>
 
     <div id="modal-clase" class="modal hidden">
         <div class="modal-card">
-            <div class="modal-header">
-                <h3>Reporte de Sesión</h3>
-                <span class="material-icons-round close-btn" onclick="closeModal()">close</span>
-            </div>
+            <div class="modal-header"><h3>Reporte</h3><span class="material-icons-round close-btn" onclick="closeModal()">close</span></div>
             <div class="modal-body">
-                <label>Sede</label>
-                <select id="sede-select">
-                    <option value="Sede Central">Sede Central</option>
-                    <option value="Escuela Rural 1">Escuela Rural 1</option>
-                    <option value="Guastatoya Oficial">Guastatoya Oficial</option>
-                </select>
-                
-                <label>Asistencia (%)</label>
-                <input type="number" id="asistencia" placeholder="Ej. 90">
-                
-                <label>Evidencia</label>
-                <input type="file" id="foto-evidencia" accept="image/*">
-                
-                <label>Bitácora</label>
-                <textarea id="notas-clase" rows="2" placeholder="Observaciones..."></textarea>
-                
-                <button class="btn-primary full-width" onclick="intentarGuardarConGPS()">
-                    📸 Check-in GPS y Guardar
-                </button>
+                <label>Sede</label><select id="sede-select"><option value="Sede Central">Sede Central</option><option value="Escuela Rural 1">Escuela Rural 1</option></select>
+                <label>Asistencia (%)</label><input type="number" id="asistencia" placeholder="90">
+                <label>Evidencia</label><input type="file" id="foto-evidencia">
+                <label>Notas</label><textarea id="notas-clase"></textarea>
+                <button class="btn-primary full-width" onclick="intentarGuardarConGPS()">📸 Guardar</button>
             </div>
         </div>
     </div>
 
     <div id="modal-admin" class="modal hidden">
         <div class="modal-card">
-            <div class="modal-header">
-                <h3>Gestión de Talento</h3>
-                <span class="material-icons-round close-btn" onclick="closeModal()">close</span>
-            </div>
+            <div class="modal-header"><h3>Gestión</h3><span class="material-icons-round close-btn" onclick="closeModal()">close</span></div>
             <div class="modal-body">
-                
-                <details>
-                    <summary>1. Nuevo Colaborador</summary>
+                <details><summary>1. Crear Usuario</summary>
                     <div class="admin-section">
-                        <input type="text" id="new-name" placeholder="Nombre Completo">
-                        <input type="email" id="new-email" placeholder="Email">
-                        <input type="password" id="new-pass" placeholder="Contraseña">
-                        <button class="btn-secondary full-width" onclick="crearColaborador()">Crear Cuenta</button>
+                        <input type="text" id="new-name" placeholder="Nombre"><input type="email" id="new-email" placeholder="Email"><input type="password" id="new-pass" placeholder="Pass">
+                        <button class="btn-secondary full-width" onclick="crearColaborador()">Crear</button>
                     </div>
                 </details>
-                
                 <div class="divider"></div>
-
-                <details open>
-                    <summary>2. Asignar OKRs</summary>
+                <details open><summary>2. Asignar OKRs</summary>
                     <div class="admin-section">
-                        <label>Asignar a:</label>
-                        <select id="admin-tutor-select"></select>
-                        
+                        <label>Tutor:</label><select id="admin-tutor-select"></select>
                         <div class="okr-builder">
-                            <label><strong>Objetivo Principal:</strong></label>
-                            <div class="input-row">
-                                <select id="obj-type">
-                                    <option value="administrativo">Admin (Q850)</option>
-                                    <option value="productividad">Prod (Q850)</option>
-                                </select>
-                                <input type="text" id="obj-title" placeholder="Ej. Excelencia Q1">
-                            </div>
-                            
-                            <label style="margin-top:10px; display:block;"><strong>Resultados Clave:</strong></label>
-                            <div id="kr-inputs-container">
-                                <div class="kr-row">
-                                    <input type="text" class="kr-desc" placeholder="KR 1: Ej. Asistencia > 80%">
-                                    <input type="number" class="kr-target" placeholder="Meta" style="width:70px">
-                                </div>
-                            </div>
-                            <button class="btn-small" style="width:100%; margin-top:5px;" onclick="agregarInputKR()">+ Agregar KR</button>
+                            <div class="input-row"><select id="obj-type"><option value="administrativo">Admin</option><option value="productividad">Prod</option></select><input type="text" id="obj-title" placeholder="Objetivo"></div>
+                            <div id="kr-inputs-container"><div class="kr-row"><input type="text" class="kr-desc" placeholder="KR"><input type="number" class="kr-target" placeholder="Meta" style="width:60px"></div></div>
+                            <button class="btn-small full-width" onclick="agregarInputKR()">+ KR</button>
                         </div>
-
-                        <button class="btn-primary full-width" onclick="guardarOKRCompleto()">Guardar Objetivo</button>
+                        <button class="btn-primary full-width" onclick="guardarOKRCompleto()">Guardar</button>
                     </div>
                 </details>
             </div>
         </div>
     </div>
-
     <script src="app.js"></script>
 </body>
 </html>
