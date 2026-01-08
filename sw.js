@@ -1,4 +1,4 @@
-const CACHE_NAME = '1bot-manager-v2';
+const CACHE_NAME = '1bot-manager-V2';
 const ASSETS = [
     '/',
     '/index.html',
