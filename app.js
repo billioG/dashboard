@@ -8,6 +8,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 // CORRECCIÓN: Usamos 'sb' para evitar conflicto con la librería global
 const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+// Coordenadas de Ejemplo (Ajustar con las reales de Google Maps)
 const sedesConfig = {
     "Sede Central": { lat: 14.634915, lon: -90.506882 }, 
     "Escuela Rural 1": { lat: 14.852300, lon: -91.503000 },
@@ -25,12 +26,13 @@ let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue')) || [];
 window.addEventListener('load', () => {
     registerServiceWorker();
     checkConnection();
+    updatePendingCount();
     
-    // Botón Login
+    // Login
     const btnLogin = document.getElementById('btn-login');
     if(btnLogin) btnLogin.addEventListener('click', loginSupabase);
 
-    // Verificar sesión
+    // Sesión Activa
     sb.auth.getSession().then(({ data: { session } }) => {
         if (session) checkUserRole(session.user.id);
     });
@@ -56,8 +58,8 @@ async function loginSupabase() {
 
     if (error) {
         errorMsg.classList.remove('hidden');
-        errorMsg.style.display = 'block'; // Force show
-        errorMsg.innerText = "Error: Verifica tu correo o contraseña";
+        errorMsg.style.display = 'block';
+        errorMsg.innerText = "Error de credenciales";
     } else {
         checkUserRole(data.user.id);
     }
@@ -66,13 +68,13 @@ async function loginSupabase() {
 async function checkUserRole(uid) {
     const { data: profile, error } = await sb.from('profiles').select('*').eq('id', uid).single();
 
-    if(error || !profile) return console.error(error);
+    if(error || !profile) return console.error("Sin perfil");
 
     document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('main-layout').classList.remove('hidden'); // Mostrar Layout
+    document.getElementById('main-layout').classList.remove('hidden');
     
-    // Actualizar datos de sidebar
-    document.getElementById('sidebar-username').innerText = profile.nombre;
+    document.getElementById('user-initial').innerText = profile.nombre.charAt(0);
+    document.getElementById('header-username').innerText = profile.nombre.split(' ')[0];
 
     if (profile.rol === 'admin' || profile.rol === 'coordinador') {
         currentRole = 'admin';
@@ -82,8 +84,7 @@ async function checkUserRole(uid) {
         currentRole = 'tutor';
         currentUser = profile.nombre;
         document.getElementById('tutor-view').classList.remove('hidden');
-        document.getElementById('tutor-welcome').innerText = `Hola, ${profile.nombre.split(' ')[0]}!`;
-        calcularBonosReales(uid);
+        cargarVistaTutor(uid); // Nueva función V4
     }
 }
 
@@ -93,29 +94,94 @@ async function logout() {
 }
 
 // ==========================================
-// 4. LÓGICA TUTOR (Bonos y GPS)
+// 4. LÓGICA TUTOR (OKRs + GPS)
 // ==========================================
-async function calcularBonosReales(userId) {
-    const { data: okrs } = await sb.from('user_okrs').select('*').eq('tutor_id', userId);
 
-    if (!okrs || okrs.length === 0) return;
+// A. Cargar y Renderizar OKRs
+async function cargarVistaTutor(uid) {
+    const container = document.getElementById('okr-container');
+    container.innerHTML = '<div class="loader">Cargando objetivos...</div>';
 
-    const adminOkrs = okrs.filter(o => o.tipo === 'administrativo');
-    const prodOkrs = okrs.filter(o => o.tipo === 'productividad');
-
-    const promAdmin = calcularPromedio(adminOkrs);
-    const promProd = calcularPromedio(prodOkrs);
+    // Traer Padre
+    const { data: objetivos } = await sb.from('objetivos').select('*').eq('tutor_id', uid);
     
-    // Promedio total para la barra lateral
-    const totalGlobal = Math.round((promAdmin + promProd) / 2);
+    if(!objetivos || objetivos.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#95A5A6;">No tienes objetivos asignados este mes.</p>';
+        return;
+    }
 
-    // Actualizar UI - Tarjetas
+    // Traer Hijos
+    const ids = objetivos.map(o => o.id);
+    const { data: krs } = await sb.from('key_results').select('*').in('objetivo_id', ids);
+
+    container.innerHTML = '';
+    
+    objetivos.forEach(obj => {
+        const misKrs = krs.filter(k => k.objetivo_id === obj.id);
+        const badgeClass = obj.tipo === 'administrativo' ? 'admin' : 'prod';
+        
+        const card = document.createElement('div');
+        card.className = 'card okr-card';
+        card.style.borderLeftColor = obj.tipo === 'administrativo' ? 'var(--primary)' : 'var(--accent)';
+        
+        card.innerHTML = `
+            <div class="okr-header">
+                <h4>${obj.titulo}</h4>
+                <span class="okr-badge ${badgeClass}">${obj.progreso_total}%</span>
+            </div>
+            <div class="kr-list">
+                ${misKrs.map(kr => `
+                    <div class="kr-item">
+                        <div class="kr-info">
+                            <span>${kr.descripcion}</span>
+                            <small>${kr.valor_actual} / ${kr.meta_maxima}</small>
+                        </div>
+                        <input type="range" min="0" max="${kr.meta_maxima}" value="${kr.valor_actual}" 
+                            onchange="actualizarKR(${kr.id}, this.value, ${obj.id}, ${uid})">
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        container.appendChild(card);
+    });
+
+    calcularTotalesDinero(objetivos);
+}
+
+async function actualizarKR(krId, nuevoValor, objetivoId, userId) {
+    // 1. Actualizar KR
+    await sb.from('key_results').update({ valor_actual: nuevoValor }).eq('id', krId);
+
+    // 2. Recalcular Padre
+    const { data: krs } = await sb.from('key_results').select('*').eq('objetivo_id', objetivoId);
+    
+    let sumaPorcentajes = 0;
+    krs.forEach(k => {
+        sumaPorcentajes += (k.valor_actual / k.meta_maxima) * 100;
+    });
+    const nuevoProgreso = Math.round(sumaPorcentajes / krs.length);
+
+    // 3. Actualizar Padre en BD
+    await sb.from('objetivos').update({ progreso_total: nuevoProgreso }).eq('id', objetivoId);
+
+    // 4. Refrescar Vista
+    cargarVistaTutor(userId);
+}
+
+function calcularTotalesDinero(objetivos) {
+    const adminObjs = objetivos.filter(o => o.tipo === 'administrativo');
+    const prodObjs = objetivos.filter(o => o.tipo === 'productividad');
+
+    const promAdmin = getPromedio(adminObjs);
+    const promProd = getPromedio(prodObjs);
+
     updateBar('bar-admin', 'perc-admin', promAdmin);
     updateBar('bar-prod', 'perc-prod', promProd);
-    
-    // Actualizar Sidebar
-    document.getElementById('global-progress').style.width = `${totalGlobal}%`;
-    document.getElementById('global-perc').innerText = `${totalGlobal}/100%`;
+}
+
+function getPromedio(arr) {
+    if(!arr.length) return 0;
+    return Math.round(arr.reduce((acc, curr) => acc + curr.progreso_total, 0) / arr.length);
 }
 
 function updateBar(barId, textId, value) {
@@ -125,13 +191,7 @@ function updateBar(barId, textId, value) {
     if(text) text.innerText = `${value}%`;
 }
 
-function calcularPromedio(lista) {
-    if (lista.length === 0) return 0;
-    const suma = lista.reduce((acc, curr) => acc + curr.progreso_actual, 0);
-    return Math.round(suma / lista.length);
-}
-
-// GPS y Guardado
+// B. GPS Logic (Igual que V3)
 function calcularDistancia(lat1, lon1, lat2, lon2) {
     const R = 6371e3; 
     const φ1 = lat1 * Math.PI/180;
@@ -144,21 +204,16 @@ function calcularDistancia(lat1, lon1, lat2, lon2) {
 }
 
 async function intentarGuardarConGPS() {
-    const btn = document.querySelector('.btn-primary.full-width'); // Botón del modal
+    const btn = document.querySelector('.btn-primary.full-width'); 
     const txtOriginal = btn.innerText;
-    btn.innerText = "Buscando ubicación...";
+    btn.innerText = "Buscando satélites...";
     btn.disabled = true;
 
     const sedeNombre = document.getElementById('sede-select').value;
     const asistencia = document.getElementById('asistencia').value;
     const notas = document.getElementById('notas-clase').value;
     
-    if(!asistencia) {
-        alert("Falta asistencia");
-        btn.innerText = txtOriginal;
-        btn.disabled = false;
-        return;
-    }
+    if(!asistencia) { alert("Falta asistencia"); btn.innerText = txtOriginal; btn.disabled = false; return; }
 
     if (!navigator.geolocation) {
         finalizarGuardado(sedeNombre, asistencia, notas, 0, 0, "GPS_NO_SOPORTADO", 0);
@@ -209,29 +264,30 @@ function finalizarGuardado(sede, asistencia, notas, lat, lon, estado, dist) {
             fecha: new Date().toISOString(),
             sincronizado: false
         };
-        
-        if (navigator.onLine) {
-            reporte.sincronizado = true;
-            sb.from('bitacora_clase').insert([reporte]).then(({ error }) => {
-                if (!error) {
-                    alert("¡Misión Cumplida! Reporte enviado.");
-                    closeModal();
-                } else {
-                    guardarLocal(reporte);
-                }
-            });
-        } else {
-            guardarLocal(reporte);
-        }
-        
-        // Reset UI
-        document.querySelector('.btn-primary.full-width').innerText = "CONFIRMAR MISIÓN";
-        document.querySelector('.btn-primary.full-width').disabled = false;
+        procesarEnvio(reporte);
     });
 }
 
+async function procesarEnvio(reporte) {
+    if (navigator.onLine) {
+        reporte.sincronizado = true;
+        const { error } = await sb.from('bitacora_clase').insert([reporte]);
+        if (!error) {
+            alert("¡Misión Cumplida!");
+            closeModal();
+        } else {
+            guardarLocal(reporte);
+        }
+    } else {
+        guardarLocal(reporte);
+    }
+    const btn = document.querySelector('.btn-primary.full-width');
+    btn.innerText = "Check-in y Guardar";
+    btn.disabled = false;
+}
+
 // ==========================================
-// 5. ADMIN
+// 5. LÓGICA ADMIN (CRUD & OKRs)
 // ==========================================
 function openAdminModal() {
     document.getElementById('modal-admin').classList.remove('hidden');
@@ -239,7 +295,6 @@ function openAdminModal() {
 }
 
 async function crearColaborador() {
-    // Misma lógica anterior...
     const email = document.getElementById('new-email').value;
     const pass = document.getElementById('new-pass').value;
     const name = document.getElementById('new-name').value;
@@ -261,29 +316,50 @@ async function cargarSelectTutores() {
     });
 }
 
-async function guardarOKR() {
-    // Misma lógica anterior...
-    const tid = document.getElementById('admin-tutor-select').value;
-    const type = document.getElementById('okr-type').value;
-    const desc = document.getElementById('okr-desc').value;
-    const prog = document.getElementById('okr-progress').value;
-
-    await sb.from('user_okrs').insert([{ tutor_id: tid, tipo: type, descripcion: desc, progreso_actual: prog }]);
-    alert("OKR Guardado");
-    cargarOkrsTutor();
+function agregarInputKR() {
+    const container = document.getElementById('kr-inputs-container');
+    const div = document.createElement('div');
+    div.className = 'kr-row';
+    div.innerHTML = `
+        <input type="text" class="kr-desc" placeholder="Nuevo Resultado Clave">
+        <input type="number" class="kr-target" placeholder="Meta" style="width:70px">
+    `;
+    container.appendChild(div);
 }
 
-async function cargarOkrsTutor() {
-    const tid = document.getElementById('admin-tutor-select').value;
-    const list = document.getElementById('current-okrs-list');
-    list.innerHTML = '...';
-    const { data } = await sb.from('user_okrs').select('*').eq('tutor_id', tid);
-    list.innerHTML = '';
-    data.forEach(o => {
-        let li = document.createElement('li');
-        li.innerText = `${o.descripcion}: ${o.progreso_actual}%`;
-        list.appendChild(li);
+async function guardarOKRCompleto() {
+    const tutorId = document.getElementById('admin-tutor-select').value;
+    const tipo = document.getElementById('obj-type').value;
+    const titulo = document.getElementById('obj-title').value;
+    
+    // Validar Inputs
+    const krInputs = document.querySelectorAll('.kr-row');
+    const krsData = [];
+    krInputs.forEach(row => {
+        const desc = row.querySelector('.kr-desc').value;
+        const target = row.querySelector('.kr-target').value;
+        if(desc && target) krsData.push({ descripcion: desc, meta_maxima: target });
     });
+
+    if(!tutorId || !titulo || krsData.length === 0) return alert("Faltan datos");
+
+    // 1. Guardar Padre
+    const { data: objData, error: objError } = await sb
+        .from('objetivos')
+        .insert([{ tutor_id: tutorId, titulo: titulo, tipo: tipo }])
+        .select()
+        .single();
+
+    if(objError) return alert("Error al guardar Objetivo");
+
+    // 2. Guardar Hijos
+    const krsConId = krsData.map(kr => ({ ...kr, objetivo_id: objData.id, valor_actual: 0 }));
+    const { error: krError } = await sb.from('key_results').insert(krsConId);
+
+    if(!krError) {
+        alert("OKR Asignado con éxito");
+        closeModal();
+    }
 }
 
 async function cargarDatosCoordinacion() {
@@ -295,33 +371,28 @@ async function cargarDatosCoordinacion() {
 
     list.innerHTML = '';
     let alertas = 0;
-    let oks = 0;
+
+    if(!tutores) return;
 
     tutores.forEach(t => {
         const rep = reportes.find(r => r.tutor_nombre === t.nombre);
-        let statusHtml = '';
+        let status = '';
         
         if(rep) {
-            if(rep.estado_gps.includes("VALIDADO")) {
-                statusHtml = `<span style="color:var(--success); font-weight:bold;">Reporte OK</span>`;
-                oks++;
-            } else {
-                statusHtml = `<span style="color:var(--warning); font-weight:bold;">Alerta GPS</span>`;
-                alertas++;
-            }
+            if(rep.estado_gps.includes("VALIDADO")) status = `<span class="status-dot dot-green"></span> OK`;
+            else { status = `<span class="status-dot dot-yellow"></span> GPS`; alertas++; }
         } else {
-            statusHtml = `<span style="color:var(--danger); font-weight:bold;">Sin Reporte</span>`;
-            alertas++;
+            status = `<span class="status-dot dot-red"></span> Pendiente`;
         }
 
         let li = document.createElement('li');
-        li.innerHTML = `<span>${t.nombre}</span> ${statusHtml}`;
+        li.className = 'tutor-row';
+        li.innerHTML = `<span>${t.nombre}</span> <small>${status}</small>`;
         list.appendChild(li);
     });
 
+    document.getElementById('total-tutors').innerText = tutores.length;
     document.getElementById('alert-count').innerText = alertas;
-    const perc = tutores.length > 0 ? Math.round((oks/tutores.length)*100) : 0;
-    document.getElementById('okr-progress').innerText = `${perc}%`;
 }
 
 // ==========================================
@@ -338,6 +409,7 @@ function checkConnection() {
 }
 
 function guardarLocal(data) {
+    data.sincronizado = false;
     offlineQueue.push(data);
     localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
     alert("Sin conexión. Guardado en dispositivo.");
