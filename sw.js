@@ -1,4 +1,4 @@
-const CACHE_NAME = '1bot-manager-v5';
+const CACHE_NAME = '1bot-manager-v6'; // ¡Versión actualizada!
 const ASSETS = [
     './',
     './index.html',
@@ -11,9 +11,24 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
+    self.skipWaiting(); // Fuerza la instalación inmediata
     e.waitUntil(
         caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(console.error))
     );
+});
+
+self.addEventListener('activate', (e) => {
+    // Borra cachés viejas para que no uses HTML antiguo
+    e.waitUntil(
+        caches.keys().then((keyList) => {
+            return Promise.all(keyList.map((key) => {
+                if (key !== CACHE_NAME) {
+                    return caches.delete(key);
+                }
+            }));
+        })
+    );
+    return self.clients.claim();
 });
 
 self.addEventListener('fetch', (e) => {
