@@ -46,7 +46,7 @@ async function loginSupabase() {
     const password = document.getElementById('password').value;
     const errorMsg = document.getElementById('login-error');
     
-    errorMsg.style.display = 'none';
+    if(errorMsg) errorMsg.style.display = 'none';
 
     const { data, error } = await sb.auth.signInWithPassword({
         email: email,
@@ -54,9 +54,13 @@ async function loginSupabase() {
     });
 
     if (error) {
-        errorMsg.classList.remove('hidden');
-        errorMsg.style.display = 'block';
-        errorMsg.innerText = "Error: " + error.message;
+        if(errorMsg) {
+            errorMsg.classList.remove('hidden');
+            errorMsg.style.display = 'block';
+            errorMsg.innerText = "Error: " + error.message;
+        } else {
+            alert("Error de credenciales");
+        }
     } else {
         checkUserRole(data.user.id);
     }
@@ -67,25 +71,36 @@ async function checkUserRole(uid) {
 
     if(error || !profile) return console.error("Error perfil", error);
 
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('main-layout').classList.remove('hidden');
+    // Ocultar login y mostrar layout (Validando que existan)
+    const loginScreen = document.getElementById('login-screen');
+    const mainLayout = document.getElementById('main-layout');
+    if(loginScreen) loginScreen.classList.add('hidden');
+    if(mainLayout) mainLayout.classList.remove('hidden');
     
-    // Solución al error "cannot set property of null"
+    // --- AQUÍ ESTABA EL ERROR: Ahora validamos que los elementos existan ---
     const initDiv = document.getElementById('user-initial');
     const nameDiv = document.getElementById('header-username');
     
+    // Solo intentamos escribir si el elemento existe en el HTML
     if(initDiv && profile.nombre) initDiv.innerText = profile.nombre.charAt(0).toUpperCase();
     if(nameDiv && profile.nombre) nameDiv.innerText = profile.nombre.split(' ')[0];
 
     if (profile.rol === 'admin' || profile.rol === 'coordinador') {
         currentRole = 'admin';
-        document.getElementById('admin-view').classList.remove('hidden');
-        cargarDatosCoordinacion();
+        const adminView = document.getElementById('admin-view');
+        if(adminView) {
+            adminView.classList.remove('hidden');
+            cargarDatosCoordinacion();
+        }
     } else {
         currentRole = 'tutor';
         currentUser = profile.nombre;
-        document.getElementById('tutor-view').classList.remove('hidden');
-        if(document.getElementById('tutor-welcome')) document.getElementById('tutor-welcome').innerText = `Hola, ${profile.nombre.split(' ')[0]}!`;
+        const tutorView = document.getElementById('tutor-view');
+        if(tutorView) tutorView.classList.remove('hidden');
+        
+        const welcomeMsg = document.getElementById('tutor-welcome');
+        if(welcomeMsg) welcomeMsg.innerText = `Hola, ${profile.nombre.split(' ')[0]}!`;
+        
         cargarVistaTutor(uid);
     }
 }
@@ -100,6 +115,8 @@ async function logout() {
 // ==========================================
 async function cargarVistaTutor(uid) {
     const container = document.getElementById('okr-container');
+    if(!container) return; // Validación extra
+    
     container.innerHTML = '<div class="loader">Cargando...</div>';
 
     const { data: objetivos } = await sb.from('objetivos').select('*').eq('tutor_id', uid);
@@ -259,6 +276,8 @@ function finalizarGuardado(sede, asistencia, notas, lat, lon, estado, dist) {
 }
 
 async function procesarEnvio(reporte) {
+    const btn = document.querySelector('.btn-primary.full-width'); // Referencia segura
+    
     if (navigator.onLine) {
         reporte.sincronizado = true;
         const { error } = await sb.from('bitacora_clase').insert([reporte]);
@@ -271,17 +290,22 @@ async function procesarEnvio(reporte) {
     } else {
         guardarLocal(reporte);
     }
-    const btn = document.querySelector('.btn-primary.full-width');
-    btn.innerText = "Check-in y Guardar";
-    btn.disabled = false;
+    
+    if(btn) {
+        btn.innerText = "📸 Check-in GPS y Guardar";
+        btn.disabled = false;
+    }
 }
 
 // ==========================================
 // 5. LÓGICA ADMIN
 // ==========================================
 function openAdminModal() {
-    document.getElementById('modal-admin').classList.remove('hidden');
-    cargarSelectTutores();
+    const modal = document.getElementById('modal-admin');
+    if(modal) {
+        modal.classList.remove('hidden');
+        cargarSelectTutores();
+    }
 }
 
 async function crearColaborador() {
@@ -296,14 +320,19 @@ async function crearColaborador() {
 
 async function cargarSelectTutores() {
     const select = document.getElementById('admin-tutor-select');
+    if(!select) return;
+    
     select.innerHTML = '<option>Cargando...</option>';
     const { data } = await sb.from('profiles').select('*').eq('rol', 'tutor');
     select.innerHTML = '';
-    data.forEach(t => {
-        let opt = document.createElement('option');
-        opt.value = t.id; opt.innerText = t.nombre;
-        select.appendChild(opt);
-    });
+    
+    if(data) {
+        data.forEach(t => {
+            let opt = document.createElement('option');
+            opt.value = t.id; opt.innerText = t.nombre;
+            select.appendChild(opt);
+        });
+    }
 }
 
 function agregarInputKR() {
@@ -331,7 +360,7 @@ async function guardarOKRCompleto() {
 
     const { data: objData, error } = await sb.from('objetivos').insert([{ tutor_id: tid, titulo, tipo }]).select().single();
     
-    if(error) return alert("Error");
+    if(error) return alert("Error: " + error.message);
 
     const krsConId = krsData.map(kr => ({ ...kr, objetivo_id: objData.id, valor_actual: 0 }));
     await sb.from('key_results').insert(krsConId);
@@ -340,6 +369,7 @@ async function guardarOKRCompleto() {
 
 async function cargarDatosCoordinacion() {
     const list = document.getElementById('lista-tutores');
+    if(!list) return;
     list.innerHTML = 'Cargando...';
     
     const { data: tutores } = await sb.from('profiles').select('*').eq('rol', 'tutor');
@@ -366,10 +396,11 @@ async function cargarDatosCoordinacion() {
         list.appendChild(li);
     });
 
-    document.getElementById('total-tutors').innerText = tutores.length;
-    document.getElementById('alert-count').innerText = alertas;
+    if(document.getElementById('total-tutors')) document.getElementById('total-tutors').innerText = tutores.length;
+    if(document.getElementById('alert-count')) document.getElementById('alert-count').innerText = alertas;
+    
     const perc = tutores.length > 0 ? Math.round((oks/tutores.length)*100) : 0;
-    document.getElementById('global-okr').innerText = `${perc}%`;
+    if(document.getElementById('global-okr')) document.getElementById('global-okr').innerText = `${perc}%`;
 }
 
 // ==========================================
@@ -414,6 +445,9 @@ function updatePendingCount() {
     if(el) el.innerText = offlineQueue.length;
 }
 
-function openModal(id) { document.getElementById(`modal-${id}`).classList.remove('hidden'); }
+function openModal(id) { 
+    const m = document.getElementById(`modal-${id}`);
+    if(m) m.classList.remove('hidden'); 
+}
 function closeModal() { document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden')); }
 function registerServiceWorker() { if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js'); }
