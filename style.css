@@ -1,0 +1,66 @@
+body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #ecf0f1; color: #2c3e50; }
+.hidden { display: none !important; }
+
+/* Login */
+#login-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: #2c3e50; color: white; text-align: center; }
+.login-box { width: 80%; max-width: 300px; }
+#login-screen input { padding: 15px; margin: 5px 0; width: 100%; border-radius: 5px; border: none; box-sizing: border-box; }
+#login-screen button { padding: 15px; width: 100%; background: #3498db; color: white; border: none; font-weight: bold; cursor: pointer; border-radius: 5px; margin-top: 10px; }
+
+/* Header General */
+.header { padding: 15px; background: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+.status-online { color: #27ae60; font-size: 12px; font-weight: bold; border: 1px solid #27ae60; padding: 2px 8px; border-radius: 10px; }
+.status-offline { color: #c0392b; font-size: 12px; font-weight: bold; border: 1px solid #c0392b; padding: 2px 8px; border-radius: 10px; }
+.btn-logout { background: transparent; border: 1px solid #7f8c8d; color: #7f8c8d; padding: 5px 10px; border-radius: 4px; }
+
+/* Scorecard Tutor */
+.scorecard { padding: 15px; background: white; margin: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+.score-item { margin-bottom: 10px; }
+.score-label { font-size: 14px; font-weight: 600; }
+.progress-bar { background: #ecf0f1; height: 12px; border-radius: 6px; margin-top: 5px; overflow: hidden; }
+.fill { height: 100%; }
+.green { background: #2ecc71; }
+.yellow { background: #f1c40f; }
+
+/* Grid Botones Tutor */
+.action-grid { display: grid; grid-template-columns: 1fr; gap: 15px; padding: 15px; }
+.card { background: white; padding: 20px; border-radius: 10px; text-align: center; cursor: pointer; border-left: 5px solid #3498db; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: transform 0.1s; }
+.card:active { transform: scale(0.98); }
+.card span { font-size: 40px; color: #3498db; margin-bottom: 10px; display: block; }
+.card h3 { margin: 0; font-size: 18px; }
+.card p { margin: 5px 0 0; font-size: 12px; color: #7f8c8d; }
+
+/* Dashboard Admin */
+.admin-header { background: #34495e; color: white; }
+.admin-header .btn-logout { border-color: white; color: white; }
+
+.kpi-row { display: flex; gap: 10px; padding: 15px; }
+.kpi-card { background: white; flex: 1; padding: 15px 5px; text-align: center; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.kpi-card h3 { margin: 0; font-size: 24px; color: #2c3e50; }
+.kpi-card p { font-size: 12px; margin: 5px 0 0; color: #7f8c8d; }
+.kpi-card.alert h3 { color: #e74c3c; }
+.kpi-card.success h3 { color: #27ae60; }
+
+.tutor-list { padding: 0 15px 15px; }
+.tutor-list h3 { font-size: 16px; margin-bottom: 10px; }
+.tutor-list ul { list-style: none; padding: 0; }
+.tutor-row { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #bdc3c7; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.tutor-row.OK { border-left-color: #2ecc71; }
+.tutor-row.ALERT { border-left-color: #e74c3c; }
+
+.badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; color: white; }
+.badge.green { background: #2ecc71; }
+.badge.red { background: #e74c3c; }
+.badge.yellow { background: #f1c40f; color: #333; }
+
+/* Modales */
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background: white; padding: 25px; width: 85%; max-width: 400px; border-radius: 10px; }
+input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #bdc3c7; border-radius: 5px; box-sizing: border-box; }
+.btn-group { display: flex; gap: 10px; margin-top: 15px; }
+.btn-save { background: #27ae60; color: white; padding: 12px; flex: 2; border: none; border-radius: 5px; font-weight: bold; }
+.btn-cancel { background: #e74c3c; color: white; padding: 12px; flex: 1; border: none; border-radius: 5px; }
+
+/* Sync Area */
+#sync-area { background: #f39c12; color: white; padding: 15px; text-align: center; position: fixed; bottom: 0; width: 100%; }
+.btn-sync { background: white; color: #f39c12; border: none; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin-left: 10px; }
