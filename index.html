@@ -2,121 +2,219 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>1bot Manager</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <section id="login-screen">
-        <div class="logo-area">
-            <span class="material-icons" style="font-size: 60px;">smart_toy</span>
-            <h1>1bot Manager</h1>
-            <p>Gestión de Tutores STEEAM</p>
-        </div>
-        <div class="login-box">
-            <input type="email" id="email" placeholder="correo@1bot.com">
-            <input type="password" id="password" placeholder="Contraseña">
-            <button onclick="loginSupabase()">Iniciar Sesión</button>
-            <p id="login-error" style="color: #ff6b6b; display:none; margin-top:10px;">Error de credenciales</p>
+        <div class="login-container">
+            <div class="logo-area">
+                <span class="material-icons-round logo-icon">smart_toy</span>
+                <h1>1bot</h1>
+                <p>Manager</p>
+            </div>
+            <div class="login-box">
+                <h2>Bienvenido</h2>
+                <input type="email" id="email" placeholder="Correo electrónico">
+                <input type="password" id="password" placeholder="Contraseña">
+                <button id="btn-login" class="btn-primary">INICIAR SESIÓN</button>
+                <p id="login-error" class="hidden">Credenciales incorrectas</p>
+            </div>
         </div>
     </section>
 
-    <section id="tutor-dashboard" class="hidden">
-        <div class="header">
-            <h2 id="tutor-welcome">Hola, Tutor</h2>
-            <div id="connection-status" class="status-online">Online</div>
-            <button class="btn-logout" onclick="logout()">Salir</button>
-        </div>
-
-        <div class="scorecard">
-            <div class="score-item">
-                <span class="score-label">Bono Administrativo (Q850)</span>
-                <div class="progress-bar"><div class="fill green" style="width: 100%"></div></div>
-            </div>
-            <div class="score-item">
-                <span class="score-label">Bono Productividad (Q850)</span>
-                <div class="progress-bar"><div class="fill yellow" style="width: 85%"></div></div>
-            </div>
-        </div>
-
-        <div class="action-grid">
-            <div class="card" onclick="openModal('clase')">
-                <span class="material-icons">school</span>
-                <h3>Mi Clase Hoy</h3>
-                <p>Check-in GPS & Asistencia</p>
+    <div id="main-layout" class="hidden">
+        
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <span class="material-icons-round">smart_toy</span>
+                <h3>1bot</h3>
             </div>
             
-            <div class="card" onclick="alert('Módulo en construcción')">
-                <span class="material-icons">assignment_turned_in</span>
-                <h3>Mis Trámites</h3>
-                <p>Informes & SIREEX</p>
+            <div class="user-info">
+                <div class="avatar-circle">T</div>
+                <div class="user-text">
+                    <h4 id="sidebar-username">Tutor</h4>
+                    <span id="connection-status" class="status-badge">Online</span>
+                </div>
             </div>
 
-            <div class="card" onclick="alert('Módulo en construcción')">
-                <span class="material-icons">build</span>
-                <h3>Mis Herramientas</h3>
-                <p>Reportar Averías</p>
-            </div>
-        </div>
+            <ul class="nav-menu">
+                <li class="active">
+                    <span class="material-icons-round">dashboard</span> Mi Panel
+                </li>
+                <li onclick="alert('Próximamente')">
+                    <span class="material-icons-round">emoji_events</span> Desafíos
+                </li>
+                <li onclick="logout()" class="logout-item">
+                    <span class="material-icons-round">logout</span> Salir
+                </li>
+            </ul>
 
-        <div id="sync-area" class="hidden">
-            <p>⚠️ Tienes <span id="pending-count">0</span> reportes sin subir.</p>
-            <button onclick="syncData()" class="btn-sync">Sincronizar Ahora</button>
-        </div>
-    </section>
-
-    <section id="admin-dashboard" class="hidden">
-        <div class="header admin-header">
-            <h2>Torre de Control</h2>
-            <button class="btn-logout" onclick="logout()">Salir</button>
-        </div>
-
-        <div class="kpi-row">
-            <div class="kpi-card">
-                <h3>11</h3>
-                <p>Tutores</p>
+            <div class="sidebar-progress">
+                <p>Tu Progreso Mensual:</p>
+                <div class="progress-track">
+                    <div id="global-progress" class="progress-fill" style="width: 0%"></div>
+                </div>
+                <small id="global-perc">0/100%</small>
             </div>
-            <div class="kpi-card alert">
-                <h3 id="alert-count">0</h3>
-                <p>Alertas GPS</p>
-            </div>
-            <div class="kpi-card success">
-                <h3 id="okr-progress">Hoy</h3>
-                <p>Reportes</p>
-            </div>
-        </div>
+        </nav>
 
-        <div class="tutor-list">
-            <h3>Actividad del Día</h3>
-            <ul id="lista-tutores">
-                </ul>
-        </div>
-    </section>
+        <main class="content-area">
+            
+            <div class="mobile-header">
+                <span class="material-icons-round">menu</span>
+                <h2>Mi Panel</h2>
+            </div>
+
+            <div class="welcome-banner">
+                <h1 id="tutor-welcome">Hola!</h1>
+                <p>Centro de Comando: Estado de Bonos y Misiones</p>
+            </div>
+
+            <div id="tutor-view" class="hidden">
+                <div class="dashboard-grid">
+                    
+                    <div class="card mission-card">
+                        <div class="mission-icon">🚀</div>
+                        <div class="mission-info">
+                            <h3>Siguiente Misión</h3>
+                            <p>Reportar clase de hoy</p>
+                            <button onclick="openModal('clase')" class="btn-action">
+                                CONTINUAR AVENTURA <span class="material-icons-round">arrow_forward</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card stat-card">
+                        <h3>Bono Administrativo</h3>
+                        <div class="big-number" id="perc-admin">0%</div>
+                        <p>Q850.00 Potenciales</p>
+                        <div class="mini-progress"><div id="bar-admin" class="fill cyan"></div></div>
+                    </div>
+
+                    <div class="card stat-card">
+                        <h3>Bono Productividad</h3>
+                        <div class="big-number" id="perc-prod">0%</div>
+                        <p>Q850.00 Potenciales</p>
+                        <div class="mini-progress"><div id="bar-prod" class="fill magenta"></div></div>
+                    </div>
+
+                    <div class="tools-row">
+                        <button class="tool-btn" onclick="alert('Pronto')">
+                            <span class="material-icons-round">assignment</span> Trámites
+                        </button>
+                        <button class="tool-btn" onclick="alert('Pronto')">
+                            <span class="material-icons-round">build</span> Soporte
+                        </button>
+                        <button class="tool-btn" onclick="syncData()">
+                            <span class="material-icons-round">sync</span> Sincronizar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="admin-view" class="hidden">
+                <div class="dashboard-grid">
+                    <div class="card full-width">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h3>Estado del Escuadrón</h3>
+                            <button class="btn-small" onclick="openAdminModal()">+ Gestionar</button>
+                        </div>
+                        <div class="kpi-summary">
+                            <div class="kpi-box">
+                                <span class="kpi-val" id="alert-count">0</span>
+                                <span class="kpi-lbl">Alertas</span>
+                            </div>
+                            <div class="kpi-box">
+                                <span class="kpi-val" id="okr-progress">0%</span>
+                                <span class="kpi-lbl">Cumplimiento</span>
+                            </div>
+                        </div>
+                        
+                        <div class="tutor-list-container">
+                            <ul id="lista-tutores" class="modern-list"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
 
     <div id="modal-clase" class="modal hidden">
-        <div class="modal-content">
-            <h3>Reporte de Sesión</h3>
-            <select id="sede-select">
-                <option value="Sede Central">Sede Central</option>
-                <option value="Escuela Rural 1">Escuela Rural 1</option>
-                <option value="Guastatoya Oficial">Guastatoya Oficial</option>
-            </select>
-            
-            <label>Asistencia (%):</label>
-            <input type="number" id="asistencia" placeholder="Ej. 90">
-            
-            <label>Evidencia (Foto):</label>
-            <input type="file" id="foto-evidencia" accept="image/*">
-            
-            <textarea id="notas-clase" placeholder="¿Hubo incidencias? ¿Qué tema diste?"></textarea>
-            
-            <div class="btn-group">
-                <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
-                <button class="btn-save" onclick="intentarGuardarConGPS()">📸 Check-in y Guardar</button>
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Reporte de Misión</h3>
+                <span class="material-icons-round close-btn" onclick="closeModal()">close</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Sede de Aterrizaje</label>
+                    <select id="sede-select">
+                        <option value="Sede Central">Sede Central</option>
+                        <option value="Escuela Rural 1">Escuela Rural 1</option>
+                        <option value="Guastatoya Oficial">Guastatoya Oficial</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tripulación Presente (%)</label>
+                    <input type="number" id="asistencia" placeholder="Ej. 90">
+                </div>
+                <div class="form-group">
+                    <label>Evidencia Visual</label>
+                    <div class="file-upload">
+                        <input type="file" id="foto-evidencia" accept="image/*">
+                        <span>Tocar para subir foto</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Bitácora</label>
+                    <textarea id="notas-clase" rows="3" placeholder="Observaciones..."></textarea>
+                </div>
+                <button class="btn-primary full-width" onclick="intentarGuardarConGPS()">
+                    CONFIRMAR MISIÓN
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-admin" class="modal hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Control de Mando</h3>
+                <span class="material-icons-round close-btn" onclick="closeModal()">close</span>
+            </div>
+            <div class="modal-body">
+                <h4 class="section-title">Reclutar Agente</h4>
+                <div class="input-row">
+                    <input type="text" id="new-name" placeholder="Nombre">
+                    <input type="email" id="new-email" placeholder="Email">
+                </div>
+                <input type="password" id="new-pass" placeholder="Contraseña" style="margin-bottom:10px;">
+                <button class="btn-secondary full-width" onclick="crearColaborador()">Crear Cuenta</button>
+                
+                <div class="divider"></div>
+
+                <h4 class="section-title">Asignar Objetivos</h4>
+                <select id="admin-tutor-select" onchange="cargarOkrsTutor()"></select>
+                <div class="input-row">
+                    <select id="okr-type">
+                        <option value="administrativo">Admin (Q850)</option>
+                        <option value="productividad">Prod (Q850)</option>
+                    </select>
+                    <input type="number" id="okr-progress" placeholder="%">
+                </div>
+                <input type="text" id="okr-desc" placeholder="Descripción del objetivo">
+                <button class="btn-primary full-width" onclick="guardarOKR()" style="margin-top:10px;">Guardar OKR</button>
+                
+                <ul id="current-okrs-list" class="mini-list"></ul>
             </div>
         </div>
     </div>
