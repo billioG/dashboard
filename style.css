@@ -96,3 +96,35 @@ input, select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; borde
 .kr-row { display: flex; gap: 10px; margin-bottom: 5px; }
 details summary { cursor: pointer; padding: 10px; font-weight: 600; color: var(--primary); background: #f0f8ff; border-radius: 8px; margin-bottom: 10px; }
 .btn-sync { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--warning); color: var(--dark); padding: 10px 25px; border-radius: 50px; font-weight: bold; display: flex; align-items: center; gap: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); z-index: 99; }
+
+/* ... (Todo el CSS anterior se mantiene, agrega esto al final) ... */
+
+/* Botón Desactivado (Gris) */
+.action-card.disabled {
+    background-color: #ecf0f1;
+    color: #bdc3c7;
+    cursor: not-allowed;
+    box-shadow: none;
+    pointer-events: none; /* Bloquea clics */
+}
+.action-card.disabled span {
+    color: #bdc3c7;
+}
+
+/* Kiosco Estudiante */
+#student-view {
+    padding: 20px;
+    text-align: center;
+    background: white;
+    border-radius: 20px;
+    margin-top: 50px;
+}
+
+.kpi-row-mini {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-top: 5px;
+    border-bottom: 1px dashed #eee;
+    padding-bottom: 5px;
+}
