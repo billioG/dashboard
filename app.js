@@ -8,198 +8,200 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 // CORRECCIÓN: Usamos 'sb' para evitar conflicto con la librería global
 const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-const sedesConfig = {
-    "Sede Central": { lat: 14.634915, lon: -90.506882 }, 
-    "Escuela Rural 1": { lat: 14.852300, lon: -91.503000 },
-    "Guastatoya Oficial": { lat: 14.855000, lon: -90.070000 }
-};
-const RADIO_PERMITIDO = 300; 
+// Configuración de Reglas
+const DEADLINE_DIA = 25; // Día del mes límite
+const DEADLINE_HORA = 23; // 23 horas
+const DEADLINE_MIN = 59; // 59 minutos
+const RADIO_GPS = 200; // Metros
+
+// Coordenadas Sede (Ejemplo)
+const SEDE_GPS = { lat: 14.634915, lon: -90.506882 }; 
 
 let currentUser = null;
 let currentRole = null;
-let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue')) || [];
+let fraudCounter = 0; // Contador de subidas rápidas (Anti-fraude)
 
 // ==========================================
-// 2. INICIALIZACIÓN
+// 1. INICIALIZACIÓN
 // ==========================================
 window.addEventListener('load', () => {
-    registerServiceWorker();
-    checkConnection();
-    updatePendingCount();
+    // Escuchar botón login
+    const btn = document.getElementById('btn-login');
+    if(btn) btn.addEventListener('click', login);
     
-    const btnLogin = document.getElementById('btn-login');
-    if(btnLogin) btnLogin.addEventListener('click', loginSupabase);
-
-    sb.auth.getSession().then(({ data: { session } }) => {
-        if (session) checkUserRole(session.user.id);
-    });
+    // Iniciar Rastreo GPS automático (El Árbitro vigila)
+    iniciarRastreoGPS();
 });
 
-window.addEventListener('online', checkConnection);
-window.addEventListener('offline', checkConnection);
-
-// ==========================================
-// 3. AUTH & ROLES
-// ==========================================
-async function loginSupabase() {
+async function login() {
+    // Simulación de Auth para demo (Integrar tu lógica Supabase aquí)
     const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const errorMsg = document.getElementById('login-error');
+    if(email.includes('admin')) checkUserRole('admin', 'Johanna');
+    else checkUserRole('tutor', 'Anahí');
+}
+
+function checkUserRole(role, name) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('main-layout').classList.remove('hidden');
     
-    if(errorMsg) errorMsg.style.display = 'none';
+    document.getElementById('header-username').innerText = name;
+    document.getElementById('user-initial').innerText = name.charAt(0);
 
-    const { data, error } = await sb.auth.signInWithPassword({
-        email: email,
-        password: password,
-    });
+    if (role === 'admin') {
+        document.getElementById('admin-view').classList.remove('hidden');
+        cargarPanelArbitro();
+    } else {
+        document.getElementById('tutor-view').classList.remove('hidden');
+        if(document.getElementById('tutor-welcome')) 
+            document.getElementById('tutor-welcome').innerText = `Hola, ${name}!`;
+    }
+}
 
-    if (error) {
-        if(errorMsg) {
-            errorMsg.classList.remove('hidden');
-            errorMsg.style.display = 'block';
-            errorMsg.innerText = "Error: " + error.message;
+// ==========================================
+// 2. REGLA 1: GPS "LLAVE MAESTRA"
+// ==========================================
+function iniciarRastreoGPS() {
+    if (!navigator.geolocation) return;
+
+    const indicador = document.getElementById('gps-indicator');
+    const btnAsistencia = document.getElementById('btn-asistencia');
+
+    navigator.geolocation.watchPosition((pos) => {
+        const dist = calcularDistancia(pos.coords.latitude, pos.coords.longitude, SEDE_GPS.lat, SEDE_GPS.lon);
+        
+        if (dist <= RADIO_GPS) {
+            // DENTRO DE LA ESCUELA -> DESBLOQUEAR
+            if(indicador) {
+                indicador.innerText = "En Sede ✅";
+                indicador.style.color = "var(--success)";
+            }
+            if(btnAsistencia) {
+                btnAsistencia.disabled = false;
+                btnAsistencia.classList.remove('disabled');
+                btnAsistencia.querySelector('span').innerText = "check_circle"; // Cambia icono
+                btnAsistencia.querySelector('span:last-child').innerText = "Tomar Asistencia";
+            }
         } else {
-            alert("Error de credenciales");
+            // FUERA -> BLOQUEAR
+            if(indicador) {
+                indicador.innerText = "Fuera de Rango ⚠️";
+                indicador.style.color = "var(--danger)";
+            }
+            if(btnAsistencia) {
+                btnAsistencia.disabled = true;
+                btnAsistencia.classList.add('disabled');
+            }
         }
-    } else {
-        checkUserRole(data.user.id);
-    }
+    }, (err) => console.error(err), { enableHighAccuracy: true });
 }
 
-async function checkUserRole(uid) {
-    const { data: profile, error } = await sb.from('profiles').select('*').eq('id', uid).single();
-
-    if(error || !profile) return console.error("Error perfil", error);
-
-    // Ocultar login y mostrar layout (Validando que existan)
-    const loginScreen = document.getElementById('login-screen');
-    const mainLayout = document.getElementById('main-layout');
-    if(loginScreen) loginScreen.classList.add('hidden');
-    if(mainLayout) mainLayout.classList.remove('hidden');
-    
-    // --- AQUÍ ESTABA EL ERROR: Ahora validamos que los elementos existan ---
-    const initDiv = document.getElementById('user-initial');
-    const nameDiv = document.getElementById('header-username');
-    
-    // Solo intentamos escribir si el elemento existe en el HTML
-    if(initDiv && profile.nombre) initDiv.innerText = profile.nombre.charAt(0).toUpperCase();
-    if(nameDiv && profile.nombre) nameDiv.innerText = profile.nombre.split(' ')[0];
-
-    if (profile.rol === 'admin' || profile.rol === 'coordinador') {
-        currentRole = 'admin';
-        const adminView = document.getElementById('admin-view');
-        if(adminView) {
-            adminView.classList.remove('hidden');
-            cargarDatosCoordinacion();
-        }
-    } else {
-        currentRole = 'tutor';
-        currentUser = profile.nombre;
-        const tutorView = document.getElementById('tutor-view');
-        if(tutorView) tutorView.classList.remove('hidden');
-        
-        const welcomeMsg = document.getElementById('tutor-welcome');
-        if(welcomeMsg) welcomeMsg.innerText = `Hola, ${profile.nombre.split(' ')[0]}!`;
-        
-        cargarVistaTutor(uid);
-    }
-}
-
-async function logout() {
-    await sb.auth.signOut();
-    location.reload();
+function tomarAsistencia() {
+    // Solo funciona si el botón está habilitado por GPS
+    alert("✅ Asistencia Validada por GPS. Geolocalización guardada.");
+    // Aquí iría el insert a Supabase con lat/lon
 }
 
 // ==========================================
-// 4. LÓGICA TUTOR
+// 3. REGLA 2: JUEZ DE TIEMPO (Timestamp)
 // ==========================================
-async function cargarVistaTutor(uid) {
-    const container = document.getElementById('okr-container');
-    if(!container) return; // Validación extra
+function enviarInformeConReglas() {
+    const ahora = new Date();
+    const dia = ahora.getDate();
+    const hora = ahora.getHours();
     
-    container.innerHTML = '<div class="loader">Cargando...</div>';
-
-    const { data: objetivos } = await sb.from('objetivos').select('*').eq('tutor_id', uid);
+    // Regla Estricta
+    let estado = "A TIEMPO ✅";
     
-    if(!objetivos || objetivos.length === 0) {
-        container.innerHTML = '<p style="text-align:center; color:#95A5A6;">Sin objetivos aún.</p>';
-        return;
+    if (dia > DEADLINE_DIA || (dia === DEADLINE_DIA && hora > DEADLINE_HORA)) {
+        estado = "TARDÍO ❌ (Penalizado)";
+        if(!confirm(`⚠️ ADVERTENCIA: Estás enviando fuera de fecha límite. Esto afectará tu bono Administrativo. ¿Continuar?`)) {
+            return;
+        }
     }
 
-    const ids = objetivos.map(o => o.id);
-    const { data: krs } = await sb.from('key_results').select('*').in('objetivo_id', ids);
+    // Simular envío
+    alert(`Informe enviado. Estado: ${estado}`);
+    closeModal();
+    // Actualizar UI
+    document.getElementById('kpi-tiempo').innerText = estado.includes("TARDÍO") ? "0%" : "100%";
+    document.getElementById('kpi-tiempo').style.color = estado.includes("TARDÍO") ? "var(--danger)" : "var(--success)";
+}
 
-    container.innerHTML = '';
+// ==========================================
+// 4. REGLA 3: MONITOR DE ESTUDIANTES (Productividad)
+// ==========================================
+function verMonitorClase() {
+    openModal('monitor');
+    const lista = document.getElementById('lista-alumnos');
+    lista.innerHTML = '';
     
-    objetivos.forEach(obj => {
-        const misKrs = krs.filter(k => k.objetivo_id === obj.id);
-        const badgeClass = obj.tipo === 'administrativo' ? 'admin' : 'prod';
-        const colorBorder = obj.tipo === 'administrativo' ? 'var(--primary)' : 'var(--accent)';
-        
-        const card = document.createElement('div');
-        card.className = 'card okr-card';
-        card.style.borderLeftColor = colorBorder;
-        
-        card.innerHTML = `
-            <div class="okr-header">
-                <h4>${obj.titulo}</h4>
-                <span class="okr-badge ${badgeClass}">${obj.progreso_total}%</span>
-            </div>
-            <div class="kr-list">
-                ${misKrs.map(kr => `
-                    <div class="kr-item">
-                        <div class="kr-info">
-                            <span>${kr.descripcion}</span>
-                            <small>${kr.valor_actual} / ${kr.meta_maxima}</small>
-                        </div>
-                        <input type="range" min="0" max="${kr.meta_maxima}" value="${kr.valor_actual}" 
-                            onchange="actualizarKR(${kr.id}, this.value, ${obj.id}, '${uid}')">
-                    </div>
-                `).join('')}
-            </div>
-        `;
-        container.appendChild(card);
+    // Simulación de datos en tiempo real
+    const alumnos = [
+        {nombre: "Juan P.", estado: "Subido ✅"},
+        {nombre: "Maria L.", estado: "Pendiente ⏳"},
+        {nombre: "Carlos R.", estado: "Subido ✅"},
+        {nombre: "Ana S.", estado: "Pendiente ⏳"}
+    ];
+
+    let subidos = 0;
+    alumnos.forEach(a => {
+        if(a.estado.includes("Subido")) subidos++;
+        const li = document.createElement('li');
+        li.className = 'tutor-row';
+        li.innerHTML = `<span>${a.nombre}</span> <small>${a.estado}</small>`;
+        lista.appendChild(li);
     });
 
-    calcularTotalesDinero(objetivos);
+    document.getElementById('live-uploads').innerText = subidos;
 }
 
-async function actualizarKR(krId, nuevoValor, objetivoId, userId) {
-    await sb.from('key_results').update({ valor_actual: nuevoValor }).eq('id', krId);
+// ==========================================
+// 5. ANTI-FRAUDE & ADMIN
+// ==========================================
+function abrirModoEstudiante() {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('student-view').classList.remove('hidden');
+}
+
+function simularSubidaEstudiante() {
+    // Simular detección de IP/Dispositivo
+    fraudCounter++;
     
-    const { data: krs } = await sb.from('key_results').select('*').eq('objetivo_id', objetivoId);
-    let suma = 0;
-    krs.forEach(k => { suma += (k.valor_actual / k.meta_maxima) * 100; });
-    const nuevoProgreso = Math.round(suma / krs.length);
+    // Si suben más de 2 tareas en 10 segundos desde el mismo dispositivo -> ALERTA
+    if(fraudCounter >= 2) {
+        console.warn("ALERTA DE FRAUDE: Múltiples cargas desde misma IP");
+        // En producción, esto envía un flag a la tabla de 'alertas' en Supabase
+    }
 
-    await sb.from('objetivos').update({ progreso_total: nuevoProgreso }).eq('id', objetivoId);
-    cargarVistaTutor(userId);
+    alert("Tarea subida con éxito");
+    // Resetear contador después de un tiempo (simulado)
+    setTimeout(() => fraudCounter = 0, 10000);
 }
 
-function calcularTotalesDinero(objetivos) {
-    const adminObjs = objetivos.filter(o => o.tipo === 'administrativo');
-    const prodObjs = objetivos.filter(o => o.tipo === 'productividad');
-    const promAdmin = getPromedio(adminObjs);
-    const promProd = getPromedio(prodObjs);
-
-    updateBar('bar-admin', 'perc-admin', promAdmin);
-    updateBar('bar-prod', 'perc-prod', promProd);
+function cargarPanelArbitro() {
+    const lista = document.getElementById('lista-tutores');
+    lista.innerHTML = `
+        <li class="tutor-row">
+            <div><strong>Anahí (Gua)</strong><br><small>SIREEX: Pendiente</small></div>
+            <button class="btn-small" onclick="aprobarHito(this)">Aprobar Hito</button>
+        </li>
+        <li class="tutor-row">
+            <div><strong>Jimy (Xela)</strong><br><small>SIREEX: OK</small></div>
+            <span class="status-badge" style="color:green">Aprobado</span>
+        </li>
+    `;
 }
 
-function getPromedio(arr) {
-    if(!arr.length) return 0;
-    return Math.round(arr.reduce((acc, curr) => acc + curr.progreso_total, 0) / arr.length);
+function aprobarHito(btn) {
+    if(confirm("¿Confirmas que revisaste el SIREEX y está correcto? Esto liberará el bono.")) {
+        btn.parentElement.innerHTML = `<div><strong>Anahí (Gua)</strong><br><small>SIREEX: OK</small></div><span class="status-badge" style="color:green">Aprobado</span>`;
+        // Aquí update a Supabase tabla hitos_admin
+    }
 }
 
-function updateBar(barId, textId, value) {
-    const bar = document.getElementById(barId);
-    const text = document.getElementById(textId);
-    if(bar) bar.style.width = `${value}%`;
-    if(text) text.innerText = `${value}%`;
-}
-
-// GPS Logic
+// UTILS
 function calcularDistancia(lat1, lon1, lat2, lon2) {
+    // Fórmula Haversine simplificada
     const R = 6371e3; 
     const φ1 = lat1 * Math.PI/180;
     const φ2 = lat2 * Math.PI/180;
@@ -210,244 +212,6 @@ function calcularDistancia(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
-async function intentarGuardarConGPS() {
-    const btn = document.querySelector('.btn-primary.full-width'); 
-    const txtOriginal = btn.innerText;
-    btn.innerText = "Buscando satélites...";
-    btn.disabled = true;
-
-    const sedeNombre = document.getElementById('sede-select').value;
-    const asistencia = document.getElementById('asistencia').value;
-    const notas = document.getElementById('notas-clase').value;
-    
-    if(!asistencia) { alert("Falta asistencia"); btn.innerText = txtOriginal; btn.disabled = false; return; }
-
-    if (!navigator.geolocation) {
-        finalizarGuardado(sedeNombre, asistencia, notas, 0, 0, "GPS_NO_SOPORTADO", 0);
-        return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-            const sedeReal = sedesConfig[sedeNombre];
-            let estado = "PENDIENTE";
-            let dist = 0;
-
-            if (sedeReal) {
-                dist = calcularDistancia(lat, lon, sedeReal.lat, sedeReal.lon);
-                if (dist <= RADIO_PERMITIDO) estado = "VALIDADO ✅";
-                else {
-                    estado = "FUERA DE RANGO ⚠️";
-                    if(!confirm(`Estás a ${Math.round(dist)}m de la sede. ¿Enviar?`)) {
-                        btn.innerText = txtOriginal; btn.disabled = false; return;
-                    }
-                }
-            } else estado = "SEDE SIN CONFIG ❓";
-
-            finalizarGuardado(sedeNombre, asistencia, notas, lat, lon, estado, dist);
-        },
-        (error) => {
-            if(confirm("Error GPS. ¿Guardar sin ubicación?")) finalizarGuardado(sedeNombre, asistencia, notas, 0, 0, "ERROR_GPS", 0);
-            btn.innerText = txtOriginal; btn.disabled = false;
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-    );
-}
-
-function finalizarGuardado(sede, asistencia, notas, lat, lon, estado, dist) {
-    sb.auth.getUser().then(({ data: { user } }) => {
-        const reporte = {
-            tutor_id: user ? user.id : null,
-            tutor_nombre: currentUser,
-            sede: sede,
-            asistencia_porcentaje: asistencia,
-            notas: notas,
-            latitud: lat,
-            longitud: lon,
-            estado_gps: estado,
-            distancia_metros: Math.round(dist),
-            fecha: new Date().toISOString(),
-            sincronizado: false
-        };
-        procesarEnvio(reporte);
-    });
-}
-
-async function procesarEnvio(reporte) {
-    const btn = document.querySelector('.btn-primary.full-width'); // Referencia segura
-    
-    if (navigator.onLine) {
-        reporte.sincronizado = true;
-        const { error } = await sb.from('bitacora_clase').insert([reporte]);
-        if (!error) {
-            alert("¡Misión Cumplida!");
-            closeModal();
-        } else {
-            guardarLocal(reporte);
-        }
-    } else {
-        guardarLocal(reporte);
-    }
-    
-    if(btn) {
-        btn.innerText = "📸 Check-in GPS y Guardar";
-        btn.disabled = false;
-    }
-}
-
-// ==========================================
-// 5. LÓGICA ADMIN
-// ==========================================
-function openAdminModal() {
-    const modal = document.getElementById('modal-admin');
-    if(modal) {
-        modal.classList.remove('hidden');
-        cargarSelectTutores();
-    }
-}
-
-async function crearColaborador() {
-    const email = document.getElementById('new-email').value;
-    const pass = document.getElementById('new-pass').value;
-    const name = document.getElementById('new-name').value;
-    
-    const { error } = await sb.auth.signUp({ email, password: pass, options: { data: { nombre: name } } });
-    if(error) alert(error.message);
-    else { alert("Usuario creado"); cargarSelectTutores(); }
-}
-
-async function cargarSelectTutores() {
-    const select = document.getElementById('admin-tutor-select');
-    if(!select) return;
-    
-    select.innerHTML = '<option>Cargando...</option>';
-    const { data } = await sb.from('profiles').select('*').eq('rol', 'tutor');
-    select.innerHTML = '';
-    
-    if(data) {
-        data.forEach(t => {
-            let opt = document.createElement('option');
-            opt.value = t.id; opt.innerText = t.nombre;
-            select.appendChild(opt);
-        });
-    }
-}
-
-function agregarInputKR() {
-    const container = document.getElementById('kr-inputs-container');
-    const div = document.createElement('div');
-    div.className = 'kr-row';
-    div.innerHTML = `<input type="text" class="kr-desc" placeholder="Nuevo KR"><input type="number" class="kr-target" placeholder="Meta" style="width:70px">`;
-    container.appendChild(div);
-}
-
-async function guardarOKRCompleto() {
-    const tid = document.getElementById('admin-tutor-select').value;
-    const tipo = document.getElementById('obj-type').value;
-    const titulo = document.getElementById('obj-title').value;
-    
-    const krInputs = document.querySelectorAll('.kr-row');
-    const krsData = [];
-    krInputs.forEach(row => {
-        const d = row.querySelector('.kr-desc').value;
-        const t = row.querySelector('.kr-target').value;
-        if(d && t) krsData.push({ descripcion: d, meta_maxima: t });
-    });
-
-    if(!tid || !titulo || krsData.length===0) return alert("Faltan datos");
-
-    const { data: objData, error } = await sb.from('objetivos').insert([{ tutor_id: tid, titulo, tipo }]).select().single();
-    
-    if(error) return alert("Error: " + error.message);
-
-    const krsConId = krsData.map(kr => ({ ...kr, objetivo_id: objData.id, valor_actual: 0 }));
-    await sb.from('key_results').insert(krsConId);
-    alert("Asignado"); closeModal();
-}
-
-async function cargarDatosCoordinacion() {
-    const list = document.getElementById('lista-tutores');
-    if(!list) return;
-    list.innerHTML = 'Cargando...';
-    
-    const { data: tutores } = await sb.from('profiles').select('*').eq('rol', 'tutor');
-    const { data: reportes } = await sb.from('bitacora_clase').select('*').gte('fecha', new Date().toISOString().split('T')[0]);
-
-    list.innerHTML = '';
-    let alertas = 0;
-    let oks = 0;
-
-    if(!tutores) return;
-
-    tutores.forEach(t => {
-        const rep = reportes.find(r => r.tutor_nombre === t.nombre);
-        let status = '';
-        if(rep) {
-            if(rep.estado_gps.includes("VALIDADO")) { status = `<span class="status-dot dot-green"></span> OK`; oks++; }
-            else { status = `<span class="status-dot dot-yellow"></span> GPS`; alertas++; }
-        } else {
-            status = `<span class="status-dot dot-red"></span> Pendiente`;
-        }
-        let li = document.createElement('li');
-        li.className = 'tutor-row';
-        li.innerHTML = `<span>${t.nombre}</span> <small>${status}</small>`;
-        list.appendChild(li);
-    });
-
-    if(document.getElementById('total-tutors')) document.getElementById('total-tutors').innerText = tutores.length;
-    if(document.getElementById('alert-count')) document.getElementById('alert-count').innerText = alertas;
-    
-    const perc = tutores.length > 0 ? Math.round((oks/tutores.length)*100) : 0;
-    if(document.getElementById('global-okr')) document.getElementById('global-okr').innerText = `${perc}%`;
-}
-
-// ==========================================
-// 6. UTILIDADES
-// ==========================================
-function checkConnection() {
-    const badge = document.getElementById('connection-status');
-    const syncArea = document.getElementById('sync-area');
-    if(navigator.onLine) {
-        if(badge) { badge.innerText = "Online"; badge.style.color = "var(--success)"; }
-        if(offlineQueue.length > 0 && syncArea) syncArea.classList.remove('hidden');
-    } else {
-        if(badge) { badge.innerText = "Offline"; badge.style.color = "var(--danger)"; }
-    }
-}
-
-function guardarLocal(data) {
-    data.sincronizado = false;
-    offlineQueue.push(data);
-    localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
-    alert("Guardado offline.");
-    closeModal();
-    updatePendingCount();
-}
-
-async function syncData() {
-    const { data: { user } } = await sb.auth.getUser();
-    for(let item of offlineQueue) {
-        item.tutor_id = user.id;
-        item.sincronizado = true;
-        await sb.from('bitacora_clase').insert([item]);
-    }
-    offlineQueue = [];
-    localStorage.setItem('offlineQueue', JSON.stringify([]));
-    updatePendingCount();
-    document.getElementById('sync-area').classList.add('hidden');
-    alert("Sincronizado");
-}
-
-function updatePendingCount() {
-    const el = document.getElementById('pending-count');
-    if(el) el.innerText = offlineQueue.length;
-}
-
-function openModal(id) { 
-    const m = document.getElementById(`modal-${id}`);
-    if(m) m.classList.remove('hidden'); 
-}
+function openModal(id) { document.getElementById(`modal-${id}`).classList.remove('hidden'); }
 function closeModal() { document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden')); }
-function registerServiceWorker() { if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js'); }
+function logout() { location.reload(); }
