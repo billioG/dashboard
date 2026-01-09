@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1bot Manager</title>
+    <title>1bot Manager: Referee Edition</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -20,11 +20,13 @@
                 <p>Manager</p>
             </div>
             <div class="login-box">
-                <h2>Bienvenido</h2>
                 <input type="email" id="email" placeholder="Correo">
                 <input type="password" id="password" placeholder="Contraseña">
-                <button id="btn-login" class="btn-primary">INICIAR SESIÓN</button>
-                <p id="login-error" class="hidden" style="color:#E74C3C;margin-top:10px;">Error de credenciales</p>
+                <button id="btn-login" class="btn-primary">ENTRAR</button>
+                <p id="login-error" class="hidden">Credenciales incorrectas</p>
+            </div>
+            <div style="margin-top:20px;">
+                <button class="btn-small" onclick="abrirModoEstudiante()">Soy Estudiante (Subir Tarea)</button>
             </div>
         </div>
     </section>
@@ -36,111 +38,118 @@
                 <div class="avatar-circle" id="user-initial">U</div>
                 <div>
                     <h4 id="header-username">Usuario</h4>
-                    <span id="connection-status" class="status-badge">Online</span>
+                    <span id="gps-indicator" class="status-badge" style="color:var(--grey)">Buscando GPS...</span>
                 </div>
             </div>
-            <button class="icon-btn" onclick="logout()">
-                <span class="material-icons-round">logout</span>
-            </button>
+            <button class="icon-btn" onclick="logout()"><span class="material-icons-round">logout</span></button>
         </header>
 
         <main class="content-area">
-            
+
             <div id="tutor-view" class="hidden">
                 <div class="welcome-banner">
                     <h1 id="tutor-welcome">Hola!</h1>
-                    <p>Meta: Q3,900.00</p>
+                    <p>Cierre de Mes: Día 25 (23:59)</p>
                 </div>
                 
                 <div class="dashboard-grid">
                     <div class="card stat-card">
-                        <div class="stat-header"><h3>Bono Admin</h3><span class="money-tag">Q850</span></div>
-                        <div class="big-number" id="perc-admin">0%</div>
+                        <div class="stat-header"><h3>Salud Operativa</h3><span class="money-tag">Q850</span></div>
+                        <div class="kpi-row-mini">
+                            <span>Asistencia GPS:</span> <strong id="kpi-asistencia">0%</strong>
+                        </div>
+                        <div class="kpi-row-mini">
+                            <span>Informes a Tiempo:</span> <strong id="kpi-tiempo" style="color:var(--success)">100%</strong>
+                        </div>
                         <div class="mini-progress"><div id="bar-admin" class="fill cyan"></div></div>
                     </div>
+
                     <div class="card stat-card">
-                        <div class="stat-header"><h3>Bono Prod.</h3><span class="money-tag">Q850</span></div>
-                        <div class="big-number" id="perc-prod">0%</div>
+                        <div class="stat-header"><h3>Resultados</h3><span class="money-tag">Q850</span></div>
+                        <div class="kpi-row-mini">
+                            <span>Adopción Digital:</span> <strong id="kpi-adopcion">0%</strong>
+                        </div>
+                        <div class="kpi-row-mini">
+                            <span>Evidencia Alumnos:</span> <strong id="kpi-evidencia">0/20</strong>
+                        </div>
                         <div class="mini-progress"><div id="bar-prod" class="fill magenta"></div></div>
                     </div>
                 </div>
 
-                <h3 class="section-label">Acciones</h3>
+                <h3 class="section-label">Gestión de Clase</h3>
                 <div class="action-row">
-                    <button class="action-card" onclick="openModal('clase')">
-                        <span class="material-icons-round">location_on</span><span>Check-in</span>
+                    <button id="btn-asistencia" class="action-card disabled" onclick="tomarAsistencia()" disabled>
+                        <span class="material-icons-round">lock</span>
+                        <span>Asistencia (GPS)</span>
                     </button>
-                    <button class="action-card" onclick="alert('Pendiente')">
-                        <span class="material-icons-round">upload_file</span><span>Informe</span>
+                    
+                    <button class="action-card" onclick="verMonitorClase()">
+                        <span class="material-icons-round">people</span>
+                        <span>Monitor Alumnos</span>
                     </button>
-                    <button class="action-card" onclick="alert('Pendiente')">
-                        <span class="material-icons-round">build</span><span>Kits</span>
+                    
+                    <button class="action-card" onclick="openModal('informe')">
+                        <span class="material-icons-round">upload_file</span>
+                        <span>Informe Mensual</span>
                     </button>
-                </div>
-
-                <h3 class="section-label">Objetivos</h3>
-                <div id="okr-container"><div class="loader">Cargando...</div></div>
-                
-                <div id="sync-area" class="hidden">
-                    <button onclick="syncData()" class="btn-sync"><span class="material-icons-round">sync</span> Sync (<span id="pending-count">0</span>)</button>
                 </div>
             </div>
 
             <div id="admin-view" class="hidden">
                 <div class="kpi-summary">
-                    <div class="kpi-box"><span class="kpi-val" id="total-tutors">0</span><span class="kpi-lbl">Equipo</span></div>
-                    <div class="kpi-box alert"><span class="kpi-val" id="alert-count">0</span><span class="kpi-lbl">Alertas</span></div>
-                    <div class="kpi-box success"><span class="kpi-val" id="global-okr">0%</span><span class="kpi-lbl">Ejecución</span></div>
+                    <div class="kpi-box"><span class="kpi-val" id="alert-count">0</span><span class="kpi-lbl">Fraudes</span></div>
+                    <div class="kpi-box success"><span class="kpi-val" id="sireex-ok">0</span><span class="kpi-lbl">SIREEX OK</span></div>
                 </div>
+
                 <div class="card full-width">
-                    <div class="card-header">
-                        <h3>Equipo</h3>
-                        <button class="btn-small" onclick="openAdminModal()">+ Gestión</button>
-                    </div>
+                    <div class="card-header"><h3>Panel de Arbitraje</h3></div>
                     <ul id="lista-tutores" class="modern-list"></ul>
                 </div>
             </div>
+
+            <div id="student-view" class="hidden">
+                <h3>Subir Evidencia</h3>
+                <input type="text" placeholder="Tu Nombre">
+                <input type="file" accept="image/*">
+                <button class="btn-primary full-width" onclick="simularSubidaEstudiante()">Enviar Tarea</button>
+                <button class="btn-small full-width" onclick="location.reload()" style="margin-top:10px;">Volver</button>
+            </div>
+
         </main>
     </div>
 
-    <div id="modal-clase" class="modal hidden">
+    <div id="modal-informe" class="modal hidden">
         <div class="modal-card">
-            <div class="modal-header"><h3>Reporte</h3><span class="material-icons-round close-btn" onclick="closeModal()">close</span></div>
+            <div class="modal-header"><h3>Informe Mensual</h3><span class="material-icons-round close-btn" onclick="closeModal()">close</span></div>
             <div class="modal-body">
-                <label>Sede</label><select id="sede-select"><option value="Sede Central">Sede Central</option><option value="Escuela Rural 1">Escuela Rural 1</option></select>
-                <label>Asistencia (%)</label><input type="number" id="asistencia" placeholder="90">
-                <label>Evidencia</label><input type="file" id="foto-evidencia">
-                <label>Notas</label><textarea id="notas-clase"></textarea>
-                <button class="btn-primary full-width" onclick="intentarGuardarConGPS()">📸 Guardar</button>
+                <p style="font-size:12px; color:var(--grey)">Regla: Debe enviarse antes del día 25 a las 23:59.</p>
+                <label>Tipo de Informe</label>
+                <select id="tipo-informe">
+                    <option value="Inventario">Inventario de Activos</option>
+                    <option value="Bitacora">Bitácora Directora</option>
+                </select>
+                <label>Evidencia PDF/Foto</label>
+                <input type="file" id="file-informe">
+                <button class="btn-primary full-width" onclick="enviarInformeConReglas()">ENVIAR INFORME</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal-monitor" class="modal hidden">
+        <div class="modal-card">
+            <div class="modal-header"><h3>Monitor en Vivo</h3><span class="material-icons-round close-btn" onclick="closeModal()">close</span></div>
+            <div class="modal-body">
+                <div class="kpi-summary">
+                    <div class="kpi-box success"><span class="kpi-val" id="live-uploads">0</span><span class="kpi-lbl">Subidos</span></div>
+                    <div class="kpi-box"><span class="kpi-val">20</span><span class="kpi-lbl">Total</span></div>
+                </div>
+                <ul id="lista-alumnos" class="modern-list" style="max-height:200px; overflow-y:auto;">
+                    </ul>
+                <button class="btn-primary full-width" onclick="closeModal()">Volver a Clase</button>
             </div>
         </div>
     </div>
 
-    <div id="modal-admin" class="modal hidden">
-        <div class="modal-card">
-            <div class="modal-header"><h3>Gestión</h3><span class="material-icons-round close-btn" onclick="closeModal()">close</span></div>
-            <div class="modal-body">
-                <details><summary>1. Crear Usuario</summary>
-                    <div class="admin-section">
-                        <input type="text" id="new-name" placeholder="Nombre"><input type="email" id="new-email" placeholder="Email"><input type="password" id="new-pass" placeholder="Pass">
-                        <button class="btn-secondary full-width" onclick="crearColaborador()">Crear</button>
-                    </div>
-                </details>
-                <div class="divider"></div>
-                <details open><summary>2. Asignar OKRs</summary>
-                    <div class="admin-section">
-                        <label>Tutor:</label><select id="admin-tutor-select"></select>
-                        <div class="okr-builder">
-                            <div class="input-row"><select id="obj-type"><option value="administrativo">Admin</option><option value="productividad">Prod</option></select><input type="text" id="obj-title" placeholder="Objetivo"></div>
-                            <div id="kr-inputs-container"><div class="kr-row"><input type="text" class="kr-desc" placeholder="KR"><input type="number" class="kr-target" placeholder="Meta" style="width:60px"></div></div>
-                            <button class="btn-small full-width" onclick="agregarInputKR()">+ KR</button>
-                        </div>
-                        <button class="btn-primary full-width" onclick="guardarOKRCompleto()">Guardar</button>
-                    </div>
-                </details>
-            </div>
-        </div>
-    </div>
     <script src="app.js"></script>
 </body>
 </html>
